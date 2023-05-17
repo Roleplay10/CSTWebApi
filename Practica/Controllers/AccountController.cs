@@ -22,7 +22,6 @@ namespace Practica.Controllers
     [Route("" +
         "[controller]")]
     [ApiController]
-    [AllowAnonymous]
     public class AccountController : ControllerBase
 
     {
@@ -71,10 +70,11 @@ namespace Practica.Controllers
             return new JsonResult(new { jwt });
         }
         [HttpPut("updateData")]
-        public ActionResult UpdateData([FromBody] UpdateDTO payload)
+        [Authorize]
+        public ActionResult UpdateData(string name, string email, DateTime birthDate, int number)
         {
             var userToEdit = _db.Users
-                .Where(u => u.Name == payload.Name)
+                .Where(u => u.Name == name)
                 .SingleOrDefault();
 
             if (userToEdit == null)
@@ -82,16 +82,17 @@ namespace Practica.Controllers
                 return NotFound();
             }
 
-            userToEdit.Name = payload.Name;
-            userToEdit.Email = payload.Email;
-            userToEdit.BirthDate = payload.BirthDate;
-            userToEdit.PhoneNumber = payload.Number;
+            userToEdit.Name = name;
+            userToEdit.Email = email;
+            userToEdit.BirthDate = birthDate;
+            userToEdit.PhoneNumber = number;
             _db.SaveChanges();
 
             return NoContent();
         }
 
         [HttpPost("login")]
+        [AllowAnonymous]
         public ActionResult Login([FromBody] LoginDTO payload)
         {
             string base64hashedPasswordBytes;
@@ -117,14 +118,21 @@ namespace Practica.Controllers
 
                 return new JsonResult(new { jwt , user = payload.UserName}) ;
             }
-
+            return Unauthorized();
         }
         [HttpGet("GetUsers")]
         [Authorize]
         public ActionResult GetUsers()
         {
             var result = _db.Users.OrderBy(x => x.Name).ToList();
-            return Ok(result);
+            if(result.IsNullOrEmpty())
+            {
+                return Unauthorized();
+            }
+            else
+            {
+                return Ok(result);
+            }
         }
         [HttpGet("GetUserByName")]
         public ActionResult GetUserByName(string name)
@@ -134,7 +142,7 @@ namespace Practica.Controllers
                 .SingleOrDefault();
             if (existingUser is null)
             {
-                return NotFound();
+                return Unauthorized();
             }
             else
             {
@@ -143,6 +151,7 @@ namespace Practica.Controllers
             }   
         }
         [HttpDelete("DeleteUser")]
+        [Authorize]
         public IActionResult Delete(string username, string password)
         {
             var entityToDelete = _db.Users.FirstOrDefault(x => x.Name == username && x.HashedPassword == createHashedPassword(password));
