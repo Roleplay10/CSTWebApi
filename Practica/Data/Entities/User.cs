@@ -14,11 +14,11 @@
 
         public int PhoneNumber { get; set; }
 
-        public string ProfileImg { get; set; }
         public ICollection<Post> Posts { get; set; }
 
         public User() {
       
+            Posts = new List<Post>();
         }
     }
 }
