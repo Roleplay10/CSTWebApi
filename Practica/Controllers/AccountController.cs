@@ -138,7 +138,7 @@ namespace Practica.Controllers
 
         [HttpPut("updateData")]
         [Authorize]
-        public ActionResult UpdateData(string name, string email, DateTime birthDate, int number)
+        public ActionResult UpdateData(string name, string email, string birthDate, int number)
         {
             var userToEdit = _db.Users
                 .Where(u => u.Name == name)
@@ -149,9 +149,10 @@ namespace Practica.Controllers
                 return NotFound();
             }
 
+            int[] date = birthDate.Split(".").Select(int.Parse).ToArray();
             userToEdit.Name = name;
             userToEdit.Email = email;
-            userToEdit.BirthDate = birthDate;
+            userToEdit.BirthDate = new DateTime(date[2], date[1], date[0]);
             userToEdit.PhoneNumber = number;
             _db.SaveChanges();
 
@@ -174,6 +175,7 @@ namespace Practica.Controllers
             }
         }
         [HttpGet("GetUserByName")]
+        [Authorize]
         public ActionResult GetUserByName(string name)
         {
             var existingUser = _db.Users
@@ -205,7 +207,7 @@ namespace Practica.Controllers
 
             return NoContent();
         }
-        [HttpPost("AddPost")]
+        [HttpPost("CreatePost")]
         [Authorize]
         public ActionResult createPost(int userId, string title, string description)
         {
@@ -240,11 +242,12 @@ namespace Practica.Controllers
         }
 
         [HttpGet("GetPotsByUserName")]
+        [Authorize]
         public ActionResult getPostByName(string name)
         {
             var existingUser = _db.Users
                 .Where(u => u.Name == name)
-                .Include(post => post.Posts)
+                .Include(p => p.Posts)
                 .SingleOrDefault();
             if(existingUser is null)
             {
@@ -261,7 +264,30 @@ namespace Practica.Controllers
 
             return Ok(posts);
         }
+        [HttpGet("GetPotsByPostId")]
+        [Authorize]
+        public ActionResult getPostById(int id)
+        {
+            var post = _db.Posts
+                .Where(u => u.Id == id)
+                .SingleOrDefault();
+            if (post is null)
+            {
+                return NotFound();
+            }
+
+            var posts = new PostDTO
+            {
+                Id = post.Id,
+                UserId = post.UserId,
+                Title = post.Title,
+                Description = post.Description
+            };
+
+            return Ok(posts);
+        }
         [HttpGet("GetAllPosts")]
+        [Authorize]
         public ActionResult getPosts()
         {
             var posts = _db.Posts.Select(p => new PostDTO
@@ -277,6 +303,97 @@ namespace Practica.Controllers
             }
 
             return Ok(posts);
+        }
+        [HttpPost("CreateReaction")]
+        [Authorize]
+        public ActionResult createReaction(int postId,int userId,string type)
+        {
+            var post = _db.Posts
+                .Where(u => u.Id == postId)
+                .SingleOrDefault();
+            if(post is null)
+            {
+                return NotFound();
+            }
+            string[] allowed_reactions = { "like", "love" };
+            if (!allowed_reactions.Contains(type))
+            {
+                return NotFound("This reaction doesn't exists");
+            }
+            var reaction = new Reaction
+            {
+                ReactionType = type,
+                UserId = userId,
+                PostId = post.Id
+            };
+            post.Reactions.Add(reaction);
+            _db.SaveChanges();
+            return Ok("Reaction created succesfully");
+        }
+        [HttpPost("CreateComment")]
+        [Authorize]
+        public ActionResult createComment(int postId, int userId, string content)
+        {
+            var post = _db.Posts
+                .Where(u => u.Id == postId)
+                .SingleOrDefault();
+            if (post is null)
+            {
+                return NotFound();
+            }
+            var comment = new Comment
+            {
+                content = content,
+                UserId = userId,
+                PostId = post.Id
+            };
+            post.Comments.Add(comment);
+            _db.SaveChanges();
+            return Ok("Comment created succesfully");
+        }
+        [HttpGet("GetAllReactionFromPostId")]
+        [Authorize]
+        public ActionResult getAllReactPostId(int postId)
+        {
+            var post = _db.Posts
+                .Where(u => u.Id == postId)
+                .Include(u=> u.Reactions)
+                .SingleOrDefault();
+            
+            if (post is null)
+            {
+                return NotFound();
+            }
+            var reacts = post.Reactions.Select(p => new ReactionDTO
+            {
+                Id = p.Id,
+                ReactionType = p.ReactionType,
+                UserId= p.UserId,
+                PostId = p.PostId
+            }).ToList();
+            return Ok(reacts);
+        }
+        [HttpGet("GetAllCommentsFromPostId")]
+        [Authorize]
+        public ActionResult getAllCommentsPostId(int postId)
+        {
+            var post = _db.Posts
+                .Where(u => u.Id == postId)
+                .Include(u => u.Comments)
+                .SingleOrDefault();
+
+            if (post is null)
+            {
+                return NotFound();
+            }
+            var comments = post.Comments.Select(p => new CommentDTO
+            {
+                Id = p.Id,
+                content = p.content,
+                UserId = p.UserId,
+                PostId = p.PostId
+            }).ToList();
+            return Ok(comments);
         }
         private string GenerateJSONWebToken(User userInfo)
         {
