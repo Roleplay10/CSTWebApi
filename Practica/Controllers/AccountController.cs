@@ -395,6 +395,56 @@ namespace Practica.Controllers
             }).ToList();
             return Ok(comments);
         }
+        [HttpGet("GetAllCommentsFromUserId")]
+        [Authorize]
+        public ActionResult getAllCommFromUserId(int userId)
+        {
+            var user = _db.Users
+            .Where(u => u.Id == userId)
+            .Include(u => u.Posts)
+            .ThenInclude(p => p.Comments)
+            .SingleOrDefault();
+
+            if (user is null)
+            {
+                return NotFound();
+            }
+
+            var comments = user.Posts.SelectMany(p => p.Comments).Select(c => new CommentDTO
+            {
+                Id = c.Id,
+                content = c.content,
+                UserId = c.UserId,
+                PostId = c.PostId
+            }).ToList();
+
+            return Ok(comments);
+        }
+        [HttpGet("GetAllReactionFromUserId")]
+        [Authorize]
+        public ActionResult getAllReactFromUserId(int userId)
+        {
+            var user = _db.Users
+            .Where(u => u.Id == userId)
+            .Include(u => u.Posts)
+            .ThenInclude(p => p.Reactions)
+            .SingleOrDefault();
+
+            if (user is null)
+            {
+                return NotFound();
+            }
+
+            var react = user.Posts.SelectMany(p => p.Reactions).Select(c => new ReactionDTO
+            {
+                Id = c.Id,
+                ReactionType = c.ReactionType,
+                UserId = c.UserId,
+                PostId = c.PostId
+            }).ToList();
+
+            return Ok(react);
+        }
         private string GenerateJSONWebToken(User userInfo)
         {
             var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
